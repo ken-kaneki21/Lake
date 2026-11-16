@@ -57,9 +57,21 @@ jobs:
           docker compose run --rm --no-deps -T --entrypoint /bin/sh lake -ec '
             conf="$(mktemp -d)"
             SPARK_CONF_DIR="$conf" /opt/spark/bin/spark-submit --master local[2] tests/lake_image_smoke.py
-            /bin/sh /opt/paritylake/run-dbt.sh --version
-            /bin/sh /opt/paritylake/run-dbt.sh parse
-            test -s /tmp/paritylake-dbt-target/manifest.json
+            version_status=0
+            /bin/sh /opt/paritylake/run-dbt.sh --version || version_status=$?
+            printf "dbt --version exit: %s\n" "$version_status"
+
+            parse_status=0
+            /bin/sh /opt/paritylake/run-dbt.sh --debug parse || parse_status=$?
+            printf "dbt parse exit: %s\n" "$parse_status"
+
+            manifest_status=0
+            test -s /tmp/paritylake-dbt-target/manifest.json || manifest_status=$?
+            printf "dbt manifest assertion exit: %s\n" "$manifest_status"
+
+            if [ "$version_status" -ne 0 ]; then exit "$version_status"; fi
+            if [ "$parse_status" -ne 0 ]; then exit "$parse_status"; fi
+            exit "$manifest_status"
           ' 2>&1 | tee evidence/lake-image-smoke.log
       - name: Stream CDC into Iceberg and verify reconciliation
         shell: bash

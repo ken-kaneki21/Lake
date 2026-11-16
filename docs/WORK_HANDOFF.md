@@ -127,3 +127,22 @@ services up, then retains full-refresh and incremental dbt build.
 No Docker engine is accessible from Work. These updated dbt checks must
 run on GitHub. Publish ParityLake-dbt-launcher.bundle by fast-forward
 using the existing commands above. Its prerequisite is bfe40a6.
+
+## Run 43862518416 and dbt command exit isolation
+
+The Docker run at b844c60 passed live CDC and the Spark smoke assertions.
+The complete log shows Core 1.11.0, an update notice for 1.12.7, and
+Spark adapter 1.11.0. The container step exited 2 without emitting parse
+output. The shell used errexit and recorded only the group status, so
+the log does not establish whether version reporting or parse failed.
+The update notice alone does not establish the cause.
+
+The next run captures dbt --version and dbt --debug parse statuses
+independently inside the same image. It reports the manifest assertion
+status and requires every check to pass. The service-backed dbt debug
+and full-refresh and incremental builds remain mandatory. No dependency
+pins or launcher behavior changed. Docker access is denied from Work,
+so actual command statuses are pending runner execution.
+
+Publish ParityLake-dbt-exit-status.bundle with the existing fast-forward
+commands. The prerequisite is b844c60.
