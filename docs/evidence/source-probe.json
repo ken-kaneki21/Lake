@@ -1,0 +1,78 @@
+{
+  "recorded_date": "2026-11-16",
+  "scope": "PostgreSQL source fixture and static configuration only",
+  "environment": {
+    "host": "Windows amd64",
+    "logical_cpu_count": 12,
+    "python": "3.10.0",
+    "postgres_test": "18.4 single-user backend",
+    "compose": "5.7.0",
+    "postgres_compose_target": "16.13",
+    "docker_engine_access": "denied"
+  },
+  "checks": {
+    "python_unit_tests": {
+      "status": "passed",
+      "count": 6
+    },
+    "source_compose_config": {
+      "status": "passed",
+      "engine_used": false
+    },
+    "connector_json_parse": {
+      "status": "passed",
+      "connector_started": false
+    },
+    "source_audit": {
+      "status": "passed",
+      "assertions": [
+        "hard-delete old value",
+        "transaction rollback",
+        "reinsertion"
+      ],
+      "command": "pwsh -NoProfile -File tests/run_postgres_probe.ps1",
+      "observed_at_utc": "2026-11-16T10:34:09Z"
+    },
+    "postgres_python_bucket_parity": {
+      "status": "passed",
+      "fixture_live_rows": 1,
+      "fixture_deleted_rows": 1,
+      "bucket_count": 256,
+      "columns": [
+        "bucket",
+        "row_count",
+        "fare_cents",
+        "tip_cents",
+        "deleted_count",
+        "fingerprint_sum"
+      ],
+      "live_bucket": [
+        "c4",
+        1,
+        1234,
+        200,
+        0,
+        2999439800
+      ],
+      "deleted_bucket": [
+        "f8",
+        0,
+        0,
+        0,
+        1,
+        2606715252
+      ]
+    },
+    "postgres_spark_bucket_parity": {
+      "status": "not_run"
+    },
+    "tlc_download": {
+      "status": "blocked",
+      "error": "Windows getaddrinfo 11001"
+    },
+    "postgres_tcp_probe": {
+      "status": "blocked",
+      "error": "Windows socket permission 10013"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "pg-app",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "plugin.name": "pgoutput",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.dbname": "${env:PGDATABASE}",
+    "database.user": "${env:CDC_PGUSER}",
+    "database.password": "${env:CDC_PGPASSWORD}",
+    "topic.prefix": "pg",
+    "table.include.list": "app.trips,app.drivers,app.zones",
+    "slot.name": "paritylake",
+    "publication.name": "paritylake",
+    "publication.autocreate.mode": "disabled",
+    "provide.transaction.metadata": "true",
+    "snapshot.mode": "initial",
+    "decimal.handling.mode": "precise",
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schema.registry.url": "http://schema-registry:8081",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+    "tombstones.on.delete": "false"
+  }
+}
