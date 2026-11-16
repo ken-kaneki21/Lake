@@ -42,6 +42,7 @@ services:
       retries: 24
 
   connect:
+    image: paritylake-connect:local
     build:
       context: ./connect
     depends_on:

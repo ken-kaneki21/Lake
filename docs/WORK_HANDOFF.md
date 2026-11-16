@@ -146,3 +146,24 @@ so actual command statuses are pending runner execution.
 
 Publish ParityLake-dbt-exit-status.bundle with the existing fast-forward
 commands. The prerequisite is b844c60.
+
+## Run 43863854226 and Maven Central rate limiting
+
+The Docker Connect build at beaa9fe failed downloading the pinned
+Debezium 3.0.8.Final archive with HTTP 429. CDC, Spark, and the dbt
+exit-status diagnostics were skipped.
+
+The Connect build now allows six transient retries per download, using
+curl's exponential backoff and Retry-After behavior with a 180-second
+retry budget and 60-second transfer timeout. It validates Maven Central's
+published SHA-1 sidecar before extracting the archive. The sidecar
+is a transport integrity check, not an independently pinned digest.
+CI loads the built Connect image from Buildx and caches the verified
+layer with a dedicated GitHub Actions cache scope. Cache export failure
+does not bypass artifact verification or fail an otherwise valid build.
+The existing Docker integration and dbt diagnostic assertions remain.
+
+Publish ParityLake-debezium-cache.bundle using the fast-forward commands.
+Its prerequisite is beaa9fe. The Docker and Maven Central endpoints
+were inaccessible from Work, so the first runner must confirm the
+download, verification, cache behavior and the downstream workflow.

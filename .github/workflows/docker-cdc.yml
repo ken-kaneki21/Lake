@@ -26,10 +26,21 @@ jobs:
             echo "::add-mask::$value"
             echo "$key=$value" >> "$GITHUB_ENV"
           done
+      - name: Set up Connect image builder
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
+      - name: Build and cache the verified Connect image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          context: docker/connect
+          pull: true
+          load: true
+          tags: paritylake-connect:local
+          cache-from: type=gha,scope=paritylake-connect
+          cache-to: type=gha,scope=paritylake-connect,mode=min,ignore-error=true
       - name: Build and start the integration stack
         run: |
           docker compose --profile integration config --quiet
-          docker compose --profile integration build --pull
+          docker compose --profile integration build --pull integration
           docker compose up -d --wait --wait-timeout 240 postgres kafka schema-registry connect
       - name: Provision raw CDC topics
         shell: bash
