@@ -1,4 +1,4 @@
-﻿#requires -Version 7.0
+#requires -Version 7.0
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -180,11 +180,61 @@ function Start-Stack {
 }
 
 function Check-Identity([string]$Label) {
-    $ids = (Compose (@('ps','-q') + $script:ServerServices) "$Label-ids").lines
-    if (@($ids).Count -ne $script:ServerServices.Count) { throw 'A required service is missing' }
-    $format = '{{.Name}} {{.Id}} {{.State.StartedAt}} {{.RestartCount}} {{.State.Status}} {{with index .State "Health"}}{{.Status}}{{else}}none{{end}}'
-    $rows = (Invoke-ParityDocker (@('inspect','--format',$format) + $ids) "$Label-health").lines | Sort-Object
-    if (@($rows | Where-Object { $_ -notmatch ' running (healthy|none)$' }).Count) { throw 'A required service is unhealthy' }
+    $ids = @((Compose (@('ps','-q') + $script:ServerServices) "$Label-ids").lines)
+    if ($ids.Count -ne $script:ServerServices.Count -or
+        @($ids | Where-Object { $_ -notmatch '^[a-f0-9]{12,64}$' }).Count -ne 0) {
+        throw 'A required service is missing'
+    }
+
+    # Full inspect JSON can include credentials. Only persist the projected health rows.
+    $started = Utc
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    $inspect = @(& docker inspect --format '{{json .}}' @ids)
+    $code = $LASTEXITCODE
+    $command = @{ step="$Label-health"; command='docker inspect --format {{json .}}'; started_utc=$started
+        ended_utc=(Utc); seconds=$watch.Elapsed.TotalSeconds; exit_code=$code }
+    Add-Content -LiteralPath (Join-Path $script:Run 'commands.jsonl') -Value ($command | ConvertTo-Json -Compress)
+    if ($code -ne 0) { throw "docker inspect failed for $Label (exit $code)" }
+    if ($inspect.Count -ne $ids.Count) { throw 'Docker returned an incomplete inspection' }
+
+    $jsonOptions = @{ AsHashtable=$true }
+    if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) { $jsonOptions.DateKind='String' }
+    $seen = [Collections.Generic.HashSet[string]]::new()
+    $rows = @(foreach ($line in $inspect) {
+        $container = $line | ConvertFrom-Json @jsonOptions
+        if ($container -isnot [Collections.IDictionary] -or
+            $container.State -isnot [Collections.IDictionary] -or
+            $container.Config -isnot [Collections.IDictionary] -or
+            $container.Id -cnotmatch '^[a-f0-9]{64}$' -or
+            $container.Name -cnotmatch '^/[A-Za-z0-9][A-Za-z0-9_.-]*$' -or
+            $container.RestartCount -isnot [ValueType] -or
+            $container.RestartCount -notmatch '^\d+$' -or
+            @($ids | Where-Object { $container.Id.StartsWith($_,[StringComparison]::Ordinal) }).Count -ne 1 -or
+            -not $seen.Add($container.Id)) { throw 'Malformed or unexpected Docker container identity' }
+        $state = $container.State
+        $startedAt = $state.StartedAt
+        if ($startedAt -is [datetime]) { $startedAt = $startedAt.ToUniversalTime().ToString('o') }
+        if ([string]$startedAt -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$' -or
+            $state.Status -cnotmatch '^(created|restarting|running|removing|paused|exited|dead)$') {
+            throw 'Malformed Docker container state'
+        }
+        $health = 'none'
+        if ($state.Contains('Health') -and $null -ne $state.Health) {
+            $health = [string]$state.Health.Status
+            if ($health -cnotmatch '^(starting|healthy|unhealthy)$') { throw 'Malformed Docker health status' }
+        } elseif ($container.Config.Contains('Healthcheck') -and
+                  $container.Config.Healthcheck -and
+                  $container.Config.Healthcheck.Test -and
+                  $container.Config.Healthcheck.Test[0] -ne 'NONE') {
+            $health = 'missing'
+        }
+        "$($container.Name) $($container.Id) $startedAt $($container.RestartCount) $($state.Status) $health"
+    })
+    $rows = @($rows | Sort-Object)
+    $rows | Set-Content -LiteralPath (Join-Path $script:Run "$Label-health.log") -Encoding utf8
+    if (@($rows | Where-Object { $_ -notmatch ' running (healthy|none)$' }).Count) {
+        throw "A required service is unhealthy. See $Label-health.log"
+    }
     $rows -join "`n"
 }
 
@@ -203,4 +253,3 @@ function Quantiles([double[]]$Values) {
     foreach ($p in @(50,95,99)) { $result["p$p"] = $ordered[[int][Math]::Ceiling($ordered.Count * $p / 100) - 1] }
     $result
 }
-
