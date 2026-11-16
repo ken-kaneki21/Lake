@@ -167,3 +167,23 @@ Publish ParityLake-debezium-cache.bundle using the fast-forward commands.
 Its prerequisite is beaa9fe. The Docker and Maven Central endpoints
 were inaccessible from Work, so the first runner must confirm the
 download, verification, cache behavior and the downstream workflow.
+
+## Run 43865064444 and dbt parse diagnostics
+
+On 8d17bc3, the Connect build and CDC assertions passed. The Spark
+smoke test passed. dbt --version returned 0, parse returned 2, and the
+manifest assertion returned 1. The runner log showed no parse error
+text and the container was removed without exporting dbt.log.
+
+The launcher now checks project/profile readability and initializes
+writable target, log and Derby directories as the container user.
+The smoke test passes explicit project/profile/target CLI options to
+parse, prints dbt.log if parsing fails, and asks dbtRunner to expose
+an exception hidden by the console entry point. The original CLI exit
+and mandatory nonempty manifest assertion are retained. Diagnostic
+success cannot turn a failing parse green. The debug and two
+lakehouse builds still follow the runtime integration assertions.
+
+The root parse exception is still unconfirmed. Docker was unavailable
+from Work. Publish ParityLake-dbt-parse.bundle with the existing
+fast-forward commands. Its prerequisite is 8d17bc3.

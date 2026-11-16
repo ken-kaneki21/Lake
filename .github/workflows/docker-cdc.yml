@@ -72,9 +72,19 @@ jobs:
             /bin/sh /opt/paritylake/run-dbt.sh --version || version_status=$?
             printf "dbt --version exit: %s\n" "$version_status"
 
+            set -- --project-dir /app/dbt --profiles-dir /app/dbt --target-path /tmp/paritylake-dbt-target
             parse_status=0
-            /bin/sh /opt/paritylake/run-dbt.sh --debug parse || parse_status=$?
+            /bin/sh /opt/paritylake/run-dbt.sh --debug parse "$@" || parse_status=$?
             printf "dbt parse exit: %s\n" "$parse_status"
+            if [ "$parse_status" -ne 0 ]; then
+              if [ -r /tmp/paritylake-dbt-logs/dbt.log ]; then
+                tail -n 160 /tmp/paritylake-dbt-logs/dbt.log
+              else
+                echo "dbt did not create a readable parse log" >&2
+              fi
+              /opt/paritylake/dbt/bin/python /app/tests/dbt_parse_probe.py "$@" ||
+                echo "dbtRunner diagnostic failed" >&2
+            fi
 
             manifest_status=0
             test -s /tmp/paritylake-dbt-target/manifest.json || manifest_status=$?
