@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 import psycopg
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, KafkaError
 from fastavro import parse_schema, schemaless_reader
 from psycopg import sql
 
@@ -70,13 +70,18 @@ def prepare_source(conn):
 def read_events(consumer, key, sequence):
     schemas = {}
     found = []
+    last_metadata_error = None
     limit = time.monotonic() + 150
     while time.monotonic() < limit:
         msg = consumer.poll(1.0)
         if msg is None:
             continue
-        if msg.error():
-            raise RuntimeError(msg.error())
+        error = msg.error()
+        if error is not None:
+            if not found and error.code() in {KafkaError.UNKNOWN_TOPIC_OR_PART, KafkaError._UNKNOWN_TOPIC}:
+                last_metadata_error = error
+                continue
+            raise RuntimeError(error)
         value = msg.value()
         if not value or len(value) < 6 or value[0] != 0:
             raise ValueError("Expected a Confluent Avro envelope")
@@ -110,7 +115,8 @@ def read_events(consumer, key, sequence):
             versions = [(row["source_lsn"], row["transaction_order"]) for row in wal]
             assert all(a < b for a, b in zip(versions, versions[1:])), found
             return found
-    raise TimeoutError(f"Expected {sequence} for {key}, observed {found}")
+    detail = f"; last topic metadata error: {last_metadata_error}" if last_metadata_error else ""
+    raise TimeoutError(f"Expected {sequence} for {key}, observed {found}{detail}")
 
 
 def main():

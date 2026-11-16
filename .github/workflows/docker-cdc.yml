@@ -31,6 +31,13 @@ jobs:
           docker compose --profile integration config --quiet
           docker compose --profile integration build --pull
           docker compose up -d --wait --wait-timeout 240 postgres kafka schema-registry connect
+      - name: Provision raw CDC topics
+        shell: bash
+        run: |
+          set -euo pipefail
+          for entity in trips drivers zones; do
+            docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --partitions 1 --replication-factor 1 --topic "pg.app.$entity"
+          done
       - name: Test source audit and Kafka CDC
         shell: bash
         run: |

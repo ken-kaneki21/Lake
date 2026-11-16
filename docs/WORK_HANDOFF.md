@@ -71,3 +71,18 @@ runtime credentials. The tracked credential-file check found no .env,
 key files or Terraform state. The GitGuardian occurrence list was not
 available here, so the incident as a whole is unclassified. A full secret
 and dependency scan has not been run.
+
+## Run 43857040155 and raw topic readiness
+
+The Ubuntu run at 36d440d reached healthy PostgreSQL, Kafka, Schema
+Registry and Connect. All 21 unit tests passed inside Docker. Connect
+registration and RUNNING readiness completed. The initial snapshot
+consumer then failed with UNKNOWN_TOPIC_OR_PART for pg.app.trips.
+The relay, Iceberg, dbt, reconciliation and public TLC stages were skipped.
+
+The next commit pre-creates the three raw CDC topics on the isolated
+broker. The probe tolerates initial unknown-topic errors within its
+existing 150-second event deadline and still requires every expected
+event. An error after events begin or any other Kafka error fails the
+probe. The new bundle is ParityLake-cdc-topics.bundle and requires
+36d440d. Use the same fast-forward commands above with this filename.
