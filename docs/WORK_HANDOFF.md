@@ -109,3 +109,21 @@ the Spark smoke test and the full Docker workflow must run on GitHub.
 Publish ParityLake-spark-python.bundle using the existing fast-forward
 commands above. Its prerequisite is 10295987. For the container test,
 see the Build and smoke-test Spark image step in docker-cdc.yml.
+
+## Run 43859763933 and dbt launcher
+
+The Docker run at bfe40a6 passed live CDC and the Spark build. The smoke
+test exercised Python 3.11.18 on x86_64, Spark 3.5.5, the Avro decimal
+round-trip and the Great Expectations check. The dbt invocation stopped
+at No such option: --project-dir. Iceberg runtime work was skipped.
+
+The launcher now starts in /app/dbt and keeps the installed dbt 1.11
+profile, log and target paths in supported environment variables.
+Derby scratch stays under /tmp because the project image directory is
+read-only to the Spark user. The regression step runs dbt --version and
+dbt parse in the built image. The integration step runs dbt debug with
+services up, then retains full-refresh and incremental dbt build.
+
+No Docker engine is accessible from Work. These updated dbt checks must
+run on GitHub. Publish ParityLake-dbt-launcher.bundle by fast-forward
+using the existing commands above. Its prerequisite is bfe40a6.

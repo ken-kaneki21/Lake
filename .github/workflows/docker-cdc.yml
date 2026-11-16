@@ -58,6 +58,8 @@ jobs:
             conf="$(mktemp -d)"
             SPARK_CONF_DIR="$conf" /opt/spark/bin/spark-submit --master local[2] tests/lake_image_smoke.py
             /bin/sh /opt/paritylake/run-dbt.sh --version
+            /bin/sh /opt/paritylake/run-dbt.sh parse
+            test -s /tmp/paritylake-dbt-target/manifest.json
           ' 2>&1 | tee evidence/lake-image-smoke.log
       - name: Stream CDC into Iceberg and verify reconciliation
         shell: bash
@@ -82,6 +84,7 @@ jobs:
           lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
           lake tests/lake_probe.py recovered | tee evidence/lake-recovered.json
           dbt() { docker compose run --rm --no-deps -T --entrypoint /bin/sh lake /opt/paritylake/run-dbt.sh "$@"; }
+          dbt debug | tee evidence/dbt-debug.log
           dbt build --full-refresh | tee evidence/dbt-full-refresh.log
           dbt build | tee evidence/dbt-incremental.log
       - name: Validate and replay public TLC data
