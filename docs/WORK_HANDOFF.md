@@ -60,3 +60,8 @@ with PostgreSQL and Confluent Avro plugins. Apply the publication, provision a
 dedicated replication role, and configure Connect's environment config
 provider. Inspect the real c/u/d/r Avro envelopes and restart behavior before
 wiring the version comparator into an Iceberg merge.
+
+## Docker CDC continuation
+
+See [Docker CDC handoff](DOCKER_CDC_HANDOFF.md) for the newer workflow, exact
+publication commands and remaining runner blocker.

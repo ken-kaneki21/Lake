@@ -1,0 +1,70 @@
+name: PostgreSQL and CDC integration
+on:
+  push:
+    branches: [main, feat/local-first]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-cdc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: docker/compose.source.yml:docker/compose.cdc.yml
+      COMPOSE_PROJECT_NAME: paritylake-ci
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prepare ephemeral development credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in PGPASSWORD CDC_PGPASSWORD; do
+            value="$(openssl rand -hex 24)"
+            echo "::add-mask::$value"
+            echo "$key=$value" >> "$GITHUB_ENV"
+          done
+      - name: Build and start the integration stack
+        run: |
+          docker compose --profile integration config --quiet
+          docker compose --profile integration build --pull
+          docker compose up -d --wait --wait-timeout 240 postgres kafka schema-registry connect
+      - name: Test source audit and Kafka CDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          docker compose run --rm --no-deps -T integration python -m unittest discover -s tests -v 2>&1 | tee evidence/unit-tests.log
+          docker compose run --rm --no-deps -T integration python -m tests.cdc_probe initial | tee evidence/cdc-initial.json
+          docker compose restart connect
+          docker compose up -d --wait --wait-timeout 180 connect
+          docker compose run --rm --no-deps -T integration python -m tests.cdc_probe restart | tee evidence/cdc-restart.json
+      - name: Validate and replay public TLC data
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T integration sh -ec '
+            python -m source_db.download --month 2024-01 --output /tmp/tlc
+            python -m source_db.seed --zones /tmp/tlc/taxi_zone_lookup.csv --drivers 20 >&2
+            python -m replayer.replay --input-dir /tmp/tlc --month 2024-01 --rate 20 --speedup 60000 --limit 100
+          ' | tee evidence/tlc-replay.jsonl
+      - name: Collect runtime diagnostics
+        if: always()
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/git-sha.txt
+          docker version > evidence/docker-version.txt 2>&1
+          docker compose --profile integration ps -a > evidence/services.txt 2>&1
+          docker compose --profile integration logs --no-color --tail 250 > evidence/compose.log 2>&1
+      - name: Remove disposable job resources
+        if: always()
+        run: docker compose --profile integration down --volumes --remove-orphans --timeout 15
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: docker-cdc-evidence
+          path: evidence/
+          retention-days: 14

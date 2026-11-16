@@ -1,0 +1,17 @@
+**
+!requirements-source.txt
+!docker/
+!docker/integration.Dockerfile
+!docker/connect/
+!docker/connect/debezium-postgres.json
+!source_db/
+!source_db/**
+!replayer/
+!replayer/**
+!recon/
+!recon/**
+!streaming/
+!streaming/**
+!tests/
+!tests/**
+**/__pycache__/
