@@ -206,3 +206,31 @@ Docker execution is unavailable from Work. Publish the verified
 incremental ParityLake-dbt-log-path.bundle from 70139d5 and check the next
 runner. Build, reconciliation, fault experiments, performance, Airflow,
 security validation, clean observation and release remain open.
+
+## Object-storage image availability after 69e8d39
+
+The previous workflow reached the streaming phase, then Docker Hub
+denied the pinned MinIO server pull. Exact historical Quay image pulls
+could not be verified from Work. The replacement is the publisher's
+multi-platform RustFS 1.0.5 index pinned by digest. A second service uses
+the same non-root image's curl client for signed SigV4 bucket setup.
+Apache Iceberg documents this combination in its Spark quickstart.
+
+The endpoint is object-store:9000 for both Hadoop S3A and Iceberg
+S3FileIO. The existing MINIO_ROOT_USER and MINIO_ROOT_PASSWORD inputs
+remain accepted and are wired to RustFS and the S3 clients. There are
+no host port mappings. RustFS uses its own named volume and does not
+reuse an existing MinIO volume. Existing MinIO data requires an S3-level
+migration. This integration only asserts the bucket and object operations
+it exercises, not full compatibility with MinIO extensions.
+
+Before building Connect, the Ubuntu workflow pulls both roles, starts
+RustFS, creates and checks buckets, then writes and reads a signed test
+object. After the catalog and object-store restart, it must read the
+original object without rewriting it. The existing streaming, MERGE,
+checkpoint, reconciliation and dbt assertions remain mandatory.
+
+Work has no accessible Docker engine. Registry tag metadata was checked,
+but actual pulls and runtime checks await an Actions runner. Publish
+ParityLake-rustfs.bundle with the prior fast-forward commands. Its
+prerequisite is 69e8d39.

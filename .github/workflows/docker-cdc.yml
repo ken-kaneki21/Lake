@@ -26,6 +26,16 @@ jobs:
             echo "::add-mask::$value"
             echo "$key=$value" >> "$GITHUB_ENV"
           done
+      - name: Preflight object-store images and signed S3 operations
+        shell: bash
+        run: |
+          set -euo pipefail
+          export COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml"
+          docker compose pull object-store buckets
+          docker compose up -d --wait --wait-timeout 120 object-store
+          docker compose run --rm --no-deps -T buckets init
+          docker compose run --rm --no-deps -T buckets write
+          docker compose run --rm --no-deps -T buckets verify
       - name: Set up Connect image builder
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
       - name: Build and cache the verified Connect image
@@ -115,8 +125,9 @@ jobs:
           lake() { docker compose run --rm --no-deps -T lake "$@"; }
           lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
           lake tests/lake_probe.py baseline | tee evidence/lake-baseline.json
-          docker compose stop catalog minio
+          docker compose stop catalog object-store
           docker compose up -d --wait --wait-timeout 180 catalog
+          docker compose run --rm --no-deps -T buckets verify
           lake tests/lake_probe.py drift | tee evidence/lake-drift.json
           docker compose run --rm --no-deps -T integration python -m tests.cdc_probe relay-update | tee evidence/relay-update.json
           lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
