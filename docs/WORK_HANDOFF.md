@@ -234,3 +234,24 @@ Work has no accessible Docker engine. Registry tag metadata was checked,
 but actual pulls and runtime checks await an Actions runner. Publish
 ParityLake-rustfs.bundle with the prior fast-forward commands. Its
 prerequisite is 69e8d39.
+
+## Published 9492a20 and dbt debug Git dependency
+
+The reported runner reached Spark/Iceberg and independent reconciliation.
+The baseline had four bronze records, two silver records and zero drift
+windows. The deliberate source change on trip 900002 showed PostgreSQL
+8.00 versus Iceberg 7.00 in one drift window. Recovery reached five
+bronze records, two silver records and zero drift windows. Spark
+connectivity passed dbt debug, which failed because git was missing.
+
+The lake image now installs the Debian Git package. UID 185 and package
+pins for Spark, Python and dbt remain unchanged. CI checks git --version
+in the Spark smoke container, then runs dbt debug, full-refresh build,
+and incremental build. Both builds are followed by direct PostgreSQL
+comparisons against the dbt fact and revenue mart for trip count, fare,
+tip and revenue. Baseline, drift, recovery and gold comparison files
+are uploaded by the existing always-run evidence step.
+
+Docker was inaccessible from Work. Publish ParityLake-dbt-git.bundle
+with the prior fast-forward commands, using 9492a20 as prerequisite.
+The new image, dbt builds and gold parity still require the runner.

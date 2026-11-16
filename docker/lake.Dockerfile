@@ -11,7 +11,7 @@ ENV SPARK_HOME=/opt/spark \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-17-jre-headless procps \
+    && apt-get install -y --no-install-recommends git openjdk-17-jre-headless procps \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --uid 185 --gid 0 --create-home --home-dir /home/spark --shell /usr/sbin/nologin spark \
     && mkdir -p /opt/paritylake/ivy \

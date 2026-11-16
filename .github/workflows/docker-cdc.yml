@@ -76,6 +76,7 @@ jobs:
           export COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml"
           docker compose --progress plain --profile lake build --pull lake
           docker compose run --rm --no-deps -T --entrypoint /bin/sh lake -ec '
+            git --version
             conf="$(mktemp -d)"
             SPARK_CONF_DIR="$conf" /opt/spark/bin/spark-submit --master local[2] tests/lake_image_smoke.py
             version_status=0
@@ -132,10 +133,15 @@ jobs:
           docker compose run --rm --no-deps -T integration python -m tests.cdc_probe relay-update | tee evidence/relay-update.json
           lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
           lake tests/lake_probe.py recovered | tee evidence/lake-recovered.json
+          test -s evidence/lake-baseline.json
+          test -s evidence/lake-drift.json
+          test -s evidence/lake-recovered.json
           dbt() { docker compose run --rm --no-deps -T --entrypoint /bin/sh lake /opt/paritylake/run-dbt.sh "$@"; }
           dbt debug | tee evidence/dbt-debug.log
           dbt build --target-path /tmp/paritylake-dbt-target --full-refresh | tee evidence/dbt-full-refresh.log
+          lake tests/dbt_totals_probe.py | tee evidence/dbt-full-refresh-totals.json
           dbt build --target-path /tmp/paritylake-dbt-target | tee evidence/dbt-incremental.log
+          lake tests/dbt_totals_probe.py | tee evidence/dbt-incremental-totals.json
       - name: Validate and replay public TLC data
         shell: bash
         run: |
