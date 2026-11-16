@@ -10,7 +10,9 @@ from dbt.cli.main import dbtRunner
 
 
 def main():
-    result = dbtRunner().invoke(["--debug", "parse", *sys.argv[1:]])
+    result = dbtRunner().invoke([
+        "--debug", "--log-path", "/tmp/paritylake-dbt-logs", "parse", *sys.argv[1:],
+    ])
     if result.exception is not None:
         traceback.print_exception(result.exception)
     else:

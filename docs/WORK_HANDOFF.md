@@ -187,3 +187,22 @@ lakehouse builds still follow the runtime integration assertions.
 The root parse exception is still unconfirmed. Docker was unavailable
 from Work. Publish ParityLake-dbt-parse.bundle with the existing
 fast-forward commands. Its prerequisite is 8d17bc3.
+
+## Run 43867180258 and dbt logger permissions
+
+The runner on 70139d5 reproduced the parse exit 2 and exposed the
+exception from dbt preflight. Logger initialization attempted to create
+/app/dbt/logs and failed with PermissionError. CDC, Spark, Avro, Great
+Expectations and dbt --version passed. Iceberg and dbt builds were skipped.
+
+The launcher supplies an explicit global --log-path for dbt commands
+and exports both env var spellings for writable output paths. CI uses
+the same log path for the diagnostic dbtRunner and explicitly targets
+/tmp for both builds. The smoke test requires UID 185, project source
+that is not writable by that user, a nonempty /tmp manifest and dbt.log,
+and no logs or target directories inside the project.
+
+Docker execution is unavailable from Work. Publish the verified
+incremental ParityLake-dbt-log-path.bundle from 70139d5 and check the next
+runner. Build, reconciliation, fault experiments, performance, Airflow,
+security validation, clean observation and release remain open.

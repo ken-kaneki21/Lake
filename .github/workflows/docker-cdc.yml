@@ -92,7 +92,12 @@ jobs:
 
             if [ "$version_status" -ne 0 ]; then exit "$version_status"; fi
             if [ "$parse_status" -ne 0 ]; then exit "$parse_status"; fi
-            exit "$manifest_status"
+            if [ "$manifest_status" -ne 0 ]; then exit "$manifest_status"; fi
+            test "$(id -u)" -eq 185
+            test ! -w /app/dbt
+            test -s /tmp/paritylake-dbt-logs/dbt.log
+            test ! -e /app/dbt/logs
+            test ! -e /app/dbt/target
           ' 2>&1 | tee evidence/lake-image-smoke.log
       - name: Stream CDC into Iceberg and verify reconciliation
         shell: bash
@@ -118,8 +123,8 @@ jobs:
           lake tests/lake_probe.py recovered | tee evidence/lake-recovered.json
           dbt() { docker compose run --rm --no-deps -T --entrypoint /bin/sh lake /opt/paritylake/run-dbt.sh "$@"; }
           dbt debug | tee evidence/dbt-debug.log
-          dbt build --full-refresh | tee evidence/dbt-full-refresh.log
-          dbt build | tee evidence/dbt-incremental.log
+          dbt build --target-path /tmp/paritylake-dbt-target --full-refresh | tee evidence/dbt-full-refresh.log
+          dbt build --target-path /tmp/paritylake-dbt-target | tee evidence/dbt-incremental.log
       - name: Validate and replay public TLC data
         shell: bash
         run: |
