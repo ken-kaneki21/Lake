@@ -255,3 +255,12 @@ are uploaded by the existing always-run evidence step.
 Docker was inaccessible from Work. Publish ParityLake-dbt-git.bundle
 with the prior fast-forward commands, using 9492a20 as prerequisite.
 The new image, dbt builds and gold parity still require the runner.
+
+## Final Windows validation handoff
+
+CI run 43881532134 passed on be4a558. Exact results are in
+evidence/ci-baseline.json. The six PowerShell entry points and their
+shared helper are in scripts/. Execute docs/windows-validation.md
+in order from the authenticated Windows checkout. Work could not access
+Docker Desktop and did not execute the fault, benchmark or observation
+stages. docs/final-acceptance.md records the remaining gates.

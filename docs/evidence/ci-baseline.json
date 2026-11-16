@@ -1,0 +1,58 @@
+{
+  "git_sha": "be4a55899d17a95594f4d17bca4c35ded84b0b53",
+  "run": "https://github.com/ken-kaneki21/Lake/actions/runs/43881532134",
+  "job_id": 133348374252,
+  "artifact": {
+    "id": 14232289743,
+    "digest": "sha256:08bef71329f6a241bc35c7794b3188b5e836ede1d9a3697ce5c48dc68d3df817"
+  },
+  "environment": "Ubuntu 24.04 GitHub Actions, Linux Docker",
+  "versions": {
+    "postgres": "16.13",
+    "debezium": "3.0.8.Final",
+    "kafka": "Confluent 7.8.0",
+    "spark": "3.5.5",
+    "iceberg": "1.9.2",
+    "rustfs": "1.0.5",
+    "dbt_core": "1.11.0",
+    "dbt_spark": "1.11.0"
+  },
+  "synthetic": {
+    "sqlite_relay": true,
+    "baseline": {
+      "bronze": 4,
+      "silver": 2,
+      "drift_windows": 0
+    },
+    "drift": {
+      "trip_id": 900002,
+      "postgres_fare": "8.00",
+      "iceberg_fare": "7.00",
+      "drift_windows": 1,
+      "bucket": "a0"
+    },
+    "recovered": {
+      "bronze": 5,
+      "silver": 2,
+      "drift_windows": 0
+    },
+    "dbt": {
+      "full_refresh_pass": 21,
+      "incremental_pass": 21,
+      "live_trip_count": 1,
+      "fare": "8.00",
+      "tip": "0.00",
+      "revenue": "8.00"
+    }
+  },
+  "public_tlc_smoke": {
+    "month": "2024-01",
+    "seed": 42,
+    "committed_transactions": 100,
+    "insert": 89,
+    "update": 7,
+    "delete": 4,
+    "elapsed_seconds": 5.252164711999967
+  },
+  "note": "TLC elapsed seconds cover source replay only. This artifact does not establish a large-scale workload, formal fault protocol or 24-hour observation."
+}

@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+# Keep this launcher LF-terminated for Docker on Windows.
 cd /app/dbt
 export DBT_ENGINE_PROFILES_DIR=/app/dbt
 export DBT_ENGINE_TARGET_PATH=/tmp/paritylake-dbt-target

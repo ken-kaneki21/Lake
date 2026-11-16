@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+# Keep this launcher LF-terminated for Docker on Windows.
 endpoint=http://object-store:9000
 marker=paritylake-object-store-ci-v1
 

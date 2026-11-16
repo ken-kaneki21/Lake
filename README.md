@@ -26,3 +26,10 @@ is the reference for TLC ingestion, KRaft setup and quality testing.
 
 The fault experiment, 24-hour observation, performance measurements,
 Airflow and release remain open. No AWS or Azure resources were provisioned.
+
+## Windows validation and acceptance evidence
+
+See the [Windows runbook](docs/windows-validation.md) for the mandatory
+Docker preflight, isolated fault matrix, clean observation, evidence
+collection and safe teardown. The [acceptance matrix](docs/final-acceptance.md)
+separates measured CI results from gates waiting on execution.
