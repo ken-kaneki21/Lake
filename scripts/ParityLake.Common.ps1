@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -182,7 +182,7 @@ function Start-Stack {
 function Check-Identity([string]$Label) {
     $ids = (Compose (@('ps','-q') + $script:ServerServices) "$Label-ids").lines
     if (@($ids).Count -ne $script:ServerServices.Count) { throw 'A required service is missing' }
-    $format = '{{.Name}} {{.Id}} {{.State.StartedAt}} {{.RestartCount}} {{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+    $format = '{{.Name}} {{.Id}} {{.State.StartedAt}} {{.RestartCount}} {{.State.Status}} {{with index .State "Health"}}{{.Status}}{{else}}none{{end}}'
     $rows = (Invoke-ParityDocker (@('inspect','--format',$format) + $ids) "$Label-health").lines | Sort-Object
     if (@($rows | Where-Object { $_ -notmatch ' running (healthy|none)$' }).Count) { throw 'A required service is unhealthy' }
     $rows -join "`n"
@@ -203,3 +203,4 @@ function Quantiles([double[]]$Values) {
     foreach ($p in @(50,95,99)) { $result["p$p"] = $ordered[[int][Math]::Ceiling($ordered.Count * $p / 100) - 1] }
     $result
 }
+
