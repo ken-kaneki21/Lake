@@ -76,6 +76,7 @@ services:
       retries: 30
 
   integration:
+    image: paritylake-integration:local
     profiles: ["integration"]
     build:
       context: ..
@@ -88,5 +89,19 @@ services:
       PGPASSWORD: ${PGPASSWORD:?set a development password}
       CDC_PGPASSWORD: ${CDC_PGPASSWORD:?set a development replication password}
 
+  relay:
+    image: paritylake-integration:local
+    profiles: ["relay"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    command: ["python", "-m", "chaos.relay", "--db", "/var/lib/paritylake/relay.db", "forward"]
+    volumes:
+      - relay-data:/var/lib/paritylake
+    mem_limit: 512m
+
 volumes:
+  relay-data:
   kafka-data:

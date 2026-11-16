@@ -11,7 +11,7 @@ permissions:
 jobs:
   docker-cdc:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       COMPOSE_FILE: docker/compose.source.yml:docker/compose.cdc.yml
       COMPOSE_PROJECT_NAME: paritylake-ci
@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in PGPASSWORD CDC_PGPASSWORD; do
+          for key in PGPASSWORD CDC_PGPASSWORD MINIO_ROOT_USER MINIO_ROOT_PASSWORD; do
             value="$(openssl rand -hex 24)"
             echo "::add-mask::$value"
             echo "$key=$value" >> "$GITHUB_ENV"
@@ -41,6 +41,32 @@ jobs:
           docker compose restart connect
           docker compose up -d --wait --wait-timeout 180 connect
           docker compose run --rm --no-deps -T integration python -m tests.cdc_probe restart | tee evidence/cdc-restart.json
+      - name: Stream CDC into Iceberg and verify reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake_files="$COMPOSE_FILE:docker/compose.lake.yml"
+          export COMPOSE_FILE="$lake_files"
+          docker compose --profile lake build --pull lake
+          docker compose up -d --wait --wait-timeout 180 catalog
+          for entity in trips drivers zones; do
+            docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --partitions 1 --replication-factor 1 --topic "relayed.app.$entity"
+          done
+          docker compose up -d relay
+          docker compose run --rm --no-deps -T integration python -m tests.cdc_probe relay-baseline | tee evidence/relay-baseline.json
+          checkpoint="s3a://checkpoints/ci-trips"
+          lake() { docker compose run --rm --no-deps -T lake "$@"; }
+          lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
+          lake tests/lake_probe.py baseline | tee evidence/lake-baseline.json
+          docker compose stop catalog minio
+          docker compose up -d --wait --wait-timeout 180 catalog
+          lake tests/lake_probe.py drift | tee evidence/lake-drift.json
+          docker compose run --rm --no-deps -T integration python -m tests.cdc_probe relay-update | tee evidence/relay-update.json
+          lake streaming/consume.py --prefix relayed --available-now --checkpoint "$checkpoint"
+          lake tests/lake_probe.py recovered | tee evidence/lake-recovered.json
+          dbt() { docker compose run --rm --no-deps -T --entrypoint /bin/sh lake /opt/paritylake/run-dbt.sh "$@"; }
+          dbt build --full-refresh | tee evidence/dbt-full-refresh.log
+          dbt build | tee evidence/dbt-incremental.log
       - name: Validate and replay public TLC data
         shell: bash
         run: |
@@ -56,11 +82,11 @@ jobs:
           mkdir -p evidence
           git rev-parse HEAD > evidence/git-sha.txt
           docker version > evidence/docker-version.txt 2>&1
-          docker compose --profile integration ps -a > evidence/services.txt 2>&1
-          docker compose --profile integration logs --no-color --tail 250 > evidence/compose.log 2>&1
+          COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay ps -a > evidence/services.txt 2>&1
+          COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay logs --no-color --tail 250 > evidence/compose.log 2>&1
       - name: Remove disposable job resources
         if: always()
-        run: docker compose --profile integration down --volumes --remove-orphans --timeout 15
+        run: COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay down --volumes --remove-orphans --timeout 15
       - name: Upload runtime evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

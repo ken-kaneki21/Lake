@@ -15,3 +15,10 @@
 !tests/
 !tests/**
 **/__pycache__/
+!docker/lake.Dockerfile
+!docker/spark-defaults.conf
+!chaos/
+!chaos/**
+!dbt/
+!dbt/**
+!docker/run-dbt.sh

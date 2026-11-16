@@ -8,4 +8,6 @@ COPY replayer replayer
 COPY recon recon
 COPY streaming streaming
 COPY tests tests
+COPY chaos chaos
+RUN install -d -o 10001 -g 0 /var/lib/paritylake
 USER 10001

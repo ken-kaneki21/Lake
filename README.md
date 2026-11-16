@@ -1,18 +1,28 @@
 # ParityLake - CDC & Data Reliability Platform
 
-Local-first development checkpoint. The implemented foundation is the
-PostgreSQL source schema, hard-delete audit, seed and replay scripts, CDC
-configuration draft, and PostgreSQL-side bucket reconciliation query.
+Local-first PostgreSQL, Debezium, Kafka, Spark and Apache Iceberg project.
+The source-level checks pass. The Docker release path remains unverified.
 
-## Verified checks
+[Architecture](docs/architecture.md) | [Work handoff](docs/WORK_HANDOFF.md) |
+[Prior source evidence](docs/evidence/source-probe.json)
 
-- Python unit tests for exact-cent hashing and CDC version comparisons.
-- Native PostgreSQL 18.4 source audit and fixture parity with the Python hash.
-- Static validation of the PostgreSQL 16 Compose configuration.
+## Integration and data
 
-See [the handoff](docs/WORK_HANDOFF.md) for exact commands and gates.
-NYC TLC publishes the [trip input and zone lookup](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
-Driver records and replay mutations are synthetic.
+The [Ubuntu integration workflow](.github/workflows/docker-cdc.yml) builds
+the isolated Compose project and checks CDC envelopes, relayed delivery,
+Iceberg merges, temporary drift, checkpoint resume and dbt. It keeps
+synthetic fixture evidence separate from the official NYC TLC Yellow Taxi
+download and replay. The handoff lists the known gaps and exact commands
+to publish the branch so the workflow can run. No host ports are published.
+
+Driver identities and update traffic are synthetic. NYC TLC publishes the
+[public trip data and zone lookup](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
 [StreamGuard](https://github.com/ken-kaneki21/streamguard/tree/6807a8e358f5bcdacbd371ec0d7c4a91accb5053)
-is the reference for TLC ingestion, KRaft setup and quality testing. This
-checkpoint uses new code for PostgreSQL WAL replay and reconciliation.
+is the reference for TLC ingestion, KRaft setup and quality testing.
+
+## Unit verification
+
+    python -m unittest discover -s tests -v
+
+The fault experiment, 24-hour observation, performance measurements,
+Airflow and release remain open. No AWS or Azure resources were provisioned.

@@ -107,7 +107,7 @@ def read_events(consumer, key, sequence):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=["initial", "restart"])
+    parser.add_argument("phase", choices=["initial", "restart", "relay-baseline", "relay-update"])
     args = parser.parse_args()
     started = datetime.now(timezone.utc)
     compatibility = get_json(f"{REGISTRY}/config")["compatibilityLevel"]
@@ -118,7 +118,8 @@ def main():
         "auto.offset.reset": "earliest",
         "enable.auto.commit": False,
     })
-    consumer.subscribe([TOPIC])
+    topic = TOPIC.replace("pg.", "relayed.", 1) if args.phase.startswith("relay-") else TOPIC
+    consumer.subscribe([topic])
     try:
         with psycopg.connect(autocommit=True) as conn:
             if args.phase == "initial":
@@ -136,7 +137,7 @@ def main():
                 events.extend(read_events(consumer, FIXTURE, ["u", "d"]))
                 assert events[1]["after_fare"] == "13.45"
                 assert events[2]["before_fare"] == "13.45"
-            else:
+            elif args.phase == "restart":
                 status = running_connector()
                 slot = conn.execute(
                     """SELECT plugin, active FROM pg_replication_slots
@@ -149,6 +150,10 @@ def main():
                     VALUES (%s, '2024-01-01 00:02+00', 7.00, 7.00)""", (key,),
                 )
                 events = read_events(consumer, key, ["c"])
+            else:
+                status = running_connector()
+                expected = ["c", "u"] if args.phase == "relay-update" else ["c"]
+                events = read_events(consumer, FIXTURE + 1, expected)
         print(json.dumps({
             "phase": args.phase,
             "dataset": "deterministic synthetic CDC fixture",

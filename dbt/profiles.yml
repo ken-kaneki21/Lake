@@ -1,0 +1,11 @@
+paritylake:
+  target: local
+  outputs:
+    local:
+      type: spark
+      method: session
+      host: NA
+      schema: gold
+      threads: 1
+      server_side_parameters:
+        spark.sql.defaultCatalog: lake

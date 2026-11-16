@@ -1,0 +1,9 @@
+name: paritylake
+version: '0.1.0'
+config-version: 2
+profile: paritylake
+model-paths: [models]
+test-paths: [tests]
+models:
+  paritylake:
+    +file_format: iceberg
