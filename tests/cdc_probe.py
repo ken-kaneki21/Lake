@@ -15,6 +15,7 @@ from fastavro import parse_schema, schemaless_reader
 from psycopg import sql
 
 from streaming.source_version import SourceVersion
+from tests.connect_readiness import wait_for_connector
 
 CONNECT = "http://connect:8083"
 REGISTRY = "http://schema-registry:8081"
@@ -31,16 +32,23 @@ def get_json(url, value=None, method=None):
 
 
 def running_connector():
-    for _ in range(75):
-        status = get_json(f"{CONNECT}/connectors/{CONNECTOR}/status")
-        tasks = status["tasks"]
-        if status["connector"]["state"] == "RUNNING" and tasks:
-            if all(task["state"] == "RUNNING" for task in tasks):
-                return {"connector": "RUNNING", "task_states": [task["state"] for task in tasks]}
-            if any(task["state"] == "FAILED" for task in tasks):
-                raise RuntimeError(f"Connector task failed: {tasks}")
-        time.sleep(2)
-    raise TimeoutError("Connector failed to become RUNNING")
+    return wait_for_connector(lambda: get_json(f"{CONNECT}/connectors/{CONNECTOR}/status"), CONNECTOR)
+
+
+def register_connector():
+    config = json.loads(Path("docker/connect/debezium-postgres.json").read_text())
+    if config["name"] != CONNECTOR:
+        raise ValueError("Connector fixture name does not match the status endpoint")
+    expected = config["config"]["connector.class"]
+    plugins = get_json(f"{CONNECT}/connector-plugins")
+    plugin = next((item for item in plugins if item["class"] == expected), None)
+    if plugin is None:
+        raise RuntimeError(f"Kafka Connect did not discover {expected}")
+    registered = get_json(f"{CONNECT}/connectors", config, "POST")
+    if registered.get("name") != CONNECTOR:
+        raise RuntimeError("Kafka Connect returned an unexpected connector name")
+    return {"name": CONNECTOR, "plugin_class": expected, "plugin_version": plugin.get("version")}
+
 
 
 def prepare_source(conn):
@@ -120,12 +128,12 @@ def main():
     })
     topic = TOPIC.replace("pg.", "relayed.", 1) if args.phase.startswith("relay-") else TOPIC
     consumer.subscribe([topic])
+    registration = None
     try:
         with psycopg.connect(autocommit=True) as conn:
             if args.phase == "initial":
                 prepare_source(conn)
-                config = json.loads(Path("docker/connect/debezium-postgres.json").read_text())
-                get_json(f"{CONNECT}/connectors", config, "POST")
+                registration = register_connector()
                 status = running_connector()
                 events = read_events(consumer, FIXTURE, ["r"])
                 with conn.transaction():
@@ -161,6 +169,7 @@ def main():
             "finished_utc": datetime.now(timezone.utc).isoformat(),
             "registry_compatibility": compatibility,
             "status": status,
+            "registration": registration,
             "events": events,
         }, indent=2))
     finally:

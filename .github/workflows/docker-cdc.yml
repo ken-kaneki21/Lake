@@ -78,12 +78,14 @@ jobs:
           ' | tee evidence/tlc-replay.jsonl
       - name: Collect runtime diagnostics
         if: always()
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p evidence
           git rev-parse HEAD > evidence/git-sha.txt
           docker version > evidence/docker-version.txt 2>&1
           COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay ps -a > evidence/services.txt 2>&1
-          COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay logs --no-color --tail 250 > evidence/compose.log 2>&1
+          COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay logs --no-color --tail 250 2>&1 | python3 -m tests.redact_ci_logs > evidence/compose.log
       - name: Remove disposable job resources
         if: always()
         run: COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml" docker compose --profile lake --profile integration --profile relay down --volumes --remove-orphans --timeout 15
