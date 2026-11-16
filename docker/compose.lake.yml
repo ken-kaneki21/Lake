@@ -70,7 +70,6 @@ services:
       PGDATABASE: ${PGDATABASE:-app}
       PGUSER: ${PGUSER:-paritylake}
       PGPASSWORD: ${PGPASSWORD:?set a development password}
-      PYTHONPATH: /app:/opt/paritylake/python
       TZ: UTC
     volumes:
       - spark-ivy:/opt/paritylake/ivy

@@ -86,3 +86,26 @@ existing 150-second event deadline and still requires every expected
 event. An error after events begin or any other Kafka error fails the
 probe. The new bundle is ParityLake-cdc-topics.bundle and requires
 36d440d. Use the same fast-forward commands above with this filename.
+
+## Run 43857964856 and the Spark Python runtime
+
+[GitHub Actions run 43857964856](https://github.com/ken-kaneki21/Lake/actions/runs/43857964856)
+passed the PostgreSQL audit and Kafka CDC step on 10295987. Debezium
+3.0.8.Final delivered snapshot, update and delete, then an insert
+after Connect restart. All 21 unit tests passed inside the integration
+container. The lake image failed while resolving fastavro 1.12.1 and
+none of the lake or dbt runtime checks executed.
+
+The Spark distribution stays at 3.5.5. The lake build now uses Python
+3.11 on Debian Bookworm and Java 17, with separate checked virtual
+environments for lake and dbt dependencies. The Docker build prints
+the Python version and architecture for the upstream and new images.
+The image smoke test runs Spark in local mode with an isolated config,
+checks the driver and worker interpreter, exercises the Avro decimal
+codec and the existing quality function, and checks the dbt CLI.
+
+The Work Docker named pipe denied access, so package co-installation,
+the Spark smoke test and the full Docker workflow must run on GitHub.
+Publish ParityLake-spark-python.bundle using the existing fast-forward
+commands above. Its prerequisite is 10295987. For the container test,
+see the Build and smoke-test Spark image step in docker-cdc.yml.

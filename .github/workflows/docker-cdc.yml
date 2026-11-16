@@ -48,13 +48,23 @@ jobs:
           docker compose restart connect
           docker compose up -d --wait --wait-timeout 180 connect
           docker compose run --rm --no-deps -T integration python -m tests.cdc_probe restart | tee evidence/cdc-restart.json
+      - name: Build and smoke-test Spark image
+        shell: bash
+        run: |
+          set -euo pipefail
+          export COMPOSE_FILE="$COMPOSE_FILE:docker/compose.lake.yml"
+          docker compose --progress plain --profile lake build --pull lake
+          docker compose run --rm --no-deps -T --entrypoint /bin/sh lake -ec '
+            conf="$(mktemp -d)"
+            SPARK_CONF_DIR="$conf" /opt/spark/bin/spark-submit --master local[2] tests/lake_image_smoke.py
+            /bin/sh /opt/paritylake/run-dbt.sh --version
+          ' 2>&1 | tee evidence/lake-image-smoke.log
       - name: Stream CDC into Iceberg and verify reconciliation
         shell: bash
         run: |
           set -euo pipefail
           lake_files="$COMPOSE_FILE:docker/compose.lake.yml"
           export COMPOSE_FILE="$lake_files"
-          docker compose --profile lake build --pull lake
           docker compose up -d --wait --wait-timeout 180 catalog
           for entity in trips drivers zones; do
             docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --partitions 1 --replication-factor 1 --topic "relayed.app.$entity"
